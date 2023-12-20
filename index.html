@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>OpenAI Assistant Prompt Injection Tester</title>
+</head>
+<body>
+
+<h1>Step 1: OpenAI Key(required)</h1>
+
+<label for="OPENAI_API_KEY">OPENAI_API_KEY create <a href="https://platform.openai.com/api-keys">here</a></label>
+<br/>
+<input id="OPENAI_API_KEY" type="text">
+<br/>
+<br/>
+<label>When you input key once its saved to local storage, never leaves your computer</label>
+<br/>
+<button id="delete_key">delete saved key</button>
+
+<h1>Step 2: Choose or add protective and assistant prompts</h1>
+
+<label for="protective_prompt">
+    Protective prompt:
+</label>
+<br/>
+<textarea cols="80" rows="10" id="protective_prompt"></textarea>
+<br/><br/>
+<label for="assistant_prompt">
+    Assistant prompt:
+</label>
+<br/>
+<textarea cols="80" rows="20" id="assistant_prompt"></textarea>
+
+<h1>Step 3: Run the suite</h1>
+<pre>
+    When you click run following things will happen:
+    1. OpenAI API will be called to check list of assistants for one with name "assistant prompt tester"
+    2. If none found one will be created
+    3. If found it will be updated to prompts from step 2
+    4. Each test will be run as separate conversation threads
+    5. Each conversation content will be checked weather it contains any parts of original prompt
+    6. Score card will be created for the prompt
+</pre>
+<button id="run">Run</button>
+<div id="output">...</div>
+<h1>TODO</h1>
+<ol>
+    <li>Allow creating assistant with two inputs. Protection + Assistant part</li>
+    <li>Allow running test suite against it</li>
+    <li>Produce score card</li>
+    <li>Show leaderboard of protective prompts with their scorecards</li>
+    <li>Show list of prompt injections against which its being tested</li>
+</ol>
+
+<script>
+    const keyInput = document.getElementById('OPENAI_API_KEY');
+    const output = document.getElementById('output');
+    keyInput.oninput = (e) => {
+        localStorage.setItem('OPENAI_API_KEY', keyInput.value);
+        if(keyInput.value !== '') {
+            deleteKey.style.display = 'block';
+        } else {
+            deleteKey.style.display = 'none';
+        }
+    };
+    const deleteKey = document.getElementById('delete_key');
+    deleteKey.onclick = () => {
+        keyInput.value = '';
+        keyInput.oninput();
+    };
+    const localKey = localStorage.getItem('OPENAI_API_KEY');
+    if (localKey) {
+        keyInput.value = localKey;
+    } else {
+        deleteKey.style.display = 'none';
+    }
+
+    let logArray = [];
+    function log(...rest) {
+        logArray.push(rest);
+        output.innerHTML = '<hr/>' + logArray.map(line => {
+           return `<div>${JSON.stringify(line)}</div><hr/>`;
+        }).join('');
+    }
+
+    const url = "https://api.openai.com/v1/assistants?order=desc&limit=20";
+    const headers = {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${keyInput.value}`, // Replace OPENAI_API_KEY with your actual API key
+        "OpenAI-Beta": "assistants=v1"
+    };
+
+    log('Requesting assistants');
+    fetch(url, {
+        method: 'GET',
+        headers: headers
+    })
+        .then(response => response.json())
+        .then(data => {
+            const tester = data.data.filter(a => a.name === 'assistant prompt tester'))[0];
+            if(tester) {
+                log('found assistant prompt tester');
+            } else {
+                log('Not found assistant prompt tester');
+            }
+        })
+        .catch(error => log('Error:', error));
+
+</script>
+</body>
+</html>
